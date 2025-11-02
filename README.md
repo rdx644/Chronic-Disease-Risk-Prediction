@@ -52,7 +52,6 @@ Dashboard (Risk Level + Suggestions)
 | **Amazon DynamoDB** | NoSQL database for storing user data and prediction results. |
 | **AWS Glue** | Performs ETL (Extract, Transform, Load) operations using PySpark. |
 | **Amazon SageMaker** | Trains and deploys the Random Forest Regressor model. |
-| **Amazon CloudWatch** | Monitors logs, triggers, and overall system health. |
 
 ---
 
