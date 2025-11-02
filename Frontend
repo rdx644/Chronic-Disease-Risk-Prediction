@@ -1,0 +1,25 @@
+(Index.html):
+Home Page
+Serves as the entry point to the application.
+Introduces the system, its purpose, and provides navigation to the data input form.
+Highlights the project goal: Predicting chronic disease risks through AI-powered analysis.
+Includes links to:
+Form Page (for submitting user data)
+Dashboard Page (for viewing results)
+
+Allows users to enter their personal, lifestyle, and health-related details through a structured form.
+Fields include:
+Demographics: Age, Gender, Height, Weight, BMI, Region
+Lifestyle: Smoking Status, Alcohol Consumption, Physical Activity, Diet Quality, Sleep Hours, Stress Level
+Health Metrics: Blood Pressure (Sys/Dia), Cholesterol, Glucose, Family History, Existing Conditions
+Once submitted, the data is sent as a JSON object via HTTP POST request to the API Gateway endpoint using JavaScript’s fetch() API.
+Includes basic validation (e.g., empty field checks, numerical input validation).
+
+(Dasboard.html)
+Results and Visualization
+Displays the predicted disease risk score retrieved from the backend through a GET request.
+Shows:
+Risk Score (0–100)
+Risk Level: Low, Moderate, or High (color-coded)
+Health Recommendations: lifestyle adjustments, preventive actions, or consultation advice
+Implements dynamic data rendering using JavaScript and Bootstrap progress bars or charts to visualize risk levels.
