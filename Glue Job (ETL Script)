@@ -1,0 +1,237 @@
+import sys
+from awsglue.transforms import *
+from awsglue.utils import getResolvedOptions
+from pyspark.context import SparkContext
+from awsglue.context import GlueContext
+from awsglue.dynamicframe import DynamicFrame
+from pyspark.sql.functions import col, when, round, lit, coalesce
+from pyspark.sql.types import DoubleType, StringType, IntegerType
+
+# --- 0. Job Initialization and Arguments ---
+args = getResolvedOptions(sys.argv, [
+    'JOB_NAME'
+])
+
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+
+from awsglue.job import Job
+job = Job(glueContext)
+job.init(args['JOB_NAME'], args)
+
+
+# --- 1. Configuration (Hardcoded) ---
+s3_raw_input_path = "s3://wellifyyyy/raw_data/"
+s3_processed_output_path = "s3://wellifyyyy/processed_for_sagemaker/" 
+
+print(f"--- Glue Job Initialized ---")
+print(f"Reading ALL raw data from: {s3_raw_input_path}")
+print(f"Writing processed data to: {s3_processed_output_path}")
+
+# Define the expected raw column names and types 
+raw_column_map = {
+    "submissionId": StringType(),
+    "age": IntegerType(),
+    "alcohol_consumption": StringType(), 
+    "blood_pressure_dia": DoubleType(),
+    "blood_pressure_sys": DoubleType(),
+    "bmi": DoubleType(), 
+    "cholesterol_level": DoubleType(),
+    "diet_quality": StringType(), 
+    "email": StringType(),              
+    "gender": StringType(),
+    "glucose_level": DoubleType(),
+    "height_cm": DoubleType(),
+    "physical_activity_level": DoubleType(),
+    "region": StringType(),
+    "sleep_hours_per_day": DoubleType(),
+    "smoking_status": StringType(), 
+    "stress_level": IntegerType(), 
+    "timestamp": StringType(),            
+    "weight_kg": DoubleType()
+}
+
+# --- 2. Data Ingestion and ETL ---
+try:
+    # Use DynamicFrame to infer the schema of the Parquet files in the specified path
+    dynamic_frame = glueContext.create_dynamic_frame.from_options(
+        connection_type="parquet",
+        connection_options={"paths": [s3_raw_input_path]},
+        format_options={},
+        transformation_ctx="datasource0"
+    )
+    
+    # Convert to a Spark DataFrame for complex PySpark SQL operations (Feature Engineering)
+    df = dynamic_frame.toDF()
+
+except Exception as e:
+    print(f"Error reading data from S3 at {s3_raw_input_path}: {e}")
+    # Commit the job to prevent failure loops if no data is found 
+    job.commit()
+    sys.exit(0)
+
+if df.count() == 0:
+    print("Input DataFrame is empty. Exiting job.")
+    job.commit()
+    sys.exit(0)
+
+print(f"Successfully read {df.count()} records.")
+
+# --- 3. Data Cleansing and Transformation ---
+
+# 3a. FIX: Handle Timestamp Columning (Use system time if available)
+SYSTEM_TS_COL = "__processing_timestamp"
+
+if SYSTEM_TS_COL in df.columns:
+    print(f"FIX: Found system timestamp '{SYSTEM_TS_COL}'. Renaming to 'timestamp'.")
+    
+    # 1. Drop the original (likely null) 'timestamp' column if it exists
+    if 'timestamp' in df.columns:
+        df = df.drop('timestamp')
+        
+    # 2. Rename the system column to the final 'timestamp'
+    # The system timestamp is a valid time string or timestamp type, so we cast it to String for consistency.
+    df = df.withColumnRenamed(SYSTEM_TS_COL, "timestamp")
+    df = df.withColumn("timestamp", col("timestamp").cast(StringType())) 
+
+else:
+    # Ensure 'timestamp' exists as a StringType (even if null) if it wasn't renamed
+    if 'timestamp' not in df.columns:
+        df = df.withColumn("timestamp", lit(None).cast(StringType()))
+        print("Warning: System timestamp not found. Added NULL 'timestamp' column.")
+
+
+# FIX: Ensure other critical columns (like email) exist before processing
+for col_name in ["email"]: # 'timestamp' is now handled above
+    if col_name not in df.columns:
+        print(f"Warning: Column '{col_name}' was not found. Adding as a NULL StringType column.")
+        df = df.withColumn(col_name, lit(None).cast(StringType()))
+
+# 3b. De-duplicate: Keep only one record per submissionId (most recent if there were multiple records per batch)
+df = df.dropDuplicates(["submissionId"])
+print(f"Records after de-duplication: {df.count()}")
+
+# 3c. Handle Nulls/Missing Values: Simple imputation (coalesce and fillna(0.0))
+# This step ensures numeric columns have a default of 0.0 if they were missing or failed casting.
+df = df.withColumn("physical_activity_level", coalesce(col("physical_activity_level"), lit(0.0)))
+df = df.withColumn("sleep_hours_per_day", coalesce(col("sleep_hours_per_day"), lit(0.0)))
+df = df.fillna(0.0) 
+
+# 3d. Ensure correct data types (Casting all raw input columns)
+# This loop is now safe because all columns in raw_column_map are guaranteed to exist 
+# in the DataFrame (even if added as nulls in the FIX section above).
+for column, dtype in raw_column_map.items():
+    if column in df.columns: 
+        df = df.withColumn(column, col(column).cast(dtype))
+
+# --- 4. Feature Engineering ---
+
+# 4a. BMI (derived)
+# Formula: weight_kg / ((height_cm / 100)^2)
+df = df.withColumn(
+    "BMI_derived",
+    round(col("weight_kg") / ((col("height_cm") / 100.0) * (col("height_cm") / 100.0)), 2)
+)
+
+# 4b. Obesity Category (derived)
+df = df.withColumn(
+    "Obesity_category",
+    when(col("BMI_derived") < 18.5, "Underweight")
+    .when((col("BMI_derived") >= 18.5) & (col("BMI_derived") < 25), "Normal")
+    .when((col("BMI_derived") >= 25) & (col("BMI_derived") < 30), "Overweight")
+    .otherwise("Obese")
+)
+
+# 4c. Hypertension Flag (derived)
+# Criteria: Systolic BP >= 140 OR Diastolic BP >= 90
+df = df.withColumn(
+    "Hypertension_flag",
+    when((col("blood_pressure_sys") >= 140) | (col("blood_pressure_dia") >= 90), 1).otherwise(0).cast(IntegerType())
+)
+
+# 4d. Prediabetes/Diabetes Flag (derived)
+# Criteria: Glucose level >= 100 mg/dL 
+df = df.withColumn(
+    "Prediabetes_Diabetes_flag",
+    when(col("glucose_level") >= 100, 1).otherwise(0).cast(IntegerType())
+)
+
+# 4e. Physical Inactivity Flag (derived)
+# Criteria: Activity level less than 2.5 hours/week
+df = df.withColumn(
+    "Physical_inactivity_flag",
+    when(col("physical_activity_level") < 2.5, 1).otherwise(0).cast(IntegerType())
+)
+
+df = df.withColumn(
+    "Cardiac_risk_index",
+    round(
+        (
+            # 1. Systolic BP Contribution: Scales BP to a reference of 150.0 mmHg.
+            (col("blood_pressure_sys") / 150.0) +
+            
+            # 2. Cholesterol Contribution: Scales Cholesterol to a reference of 250.0 mg/dL.
+            (col("cholesterol_level") / 250.0) +
+            
+            # 3. Smoking Contribution: Adds a fixed weight (0.3) for current smokers.
+            (when(col("smoking_status").rlike("(?i)yes|current"), 0.3).otherwise(0.0))
+        ) / 2.5, # <-- Normalizes the total aggregate risk score by the maximum expected score (2.5)
+        2 # Rounds the final index to two decimal places
+    )
+)
+
+
+# 4g. Stress Index (derived) 
+df = df.withColumn(
+    "Stress_index",
+    round(
+        (col("stress_level") / 5.0) * (when(col("sleep_hours_per_day") < 7, 1.5).otherwise(1.0)), 
+        2
+    )
+)
+
+# 4h. Diet Risk Index (derived) 
+df = df.withColumn(
+    "Diet_risk_index",
+    when(col("diet_quality").rlike("(?i)poor"), 1.0)
+    .when(col("diet_quality").rlike("(?i)average"), 0.5)
+    .otherwise(0.0) 
+)
+
+# 4i. Lung Risk Index (derived) 
+df = df.withColumn(
+    "Lung_risk_index",
+    when(col("smoking_status").rlike("(?i)yes|current"), 1.0).otherwise(0.1)
+)
+
+# --- 5. Final Data Selection for SageMaker ---
+final_columns = [
+    "submissionId", "email", "timestamp", "age", "gender", "height_cm", "weight_kg",
+    # Raw Inputs
+    "smoking_status", "alcohol_consumption", "physical_activity_level", "sleep_hours_per_day", 
+    "stress_level", "diet_quality", "cholesterol_level", "glucose_level", 
+    "blood_pressure_sys", "blood_pressure_dia", "region",
+    # Engineered Features (These are the features SageMaker will train on)
+    "BMI_derived", "Obesity_category", "Hypertension_flag", "Prediabetes_Diabetes_flag", 
+    "Physical_inactivity_flag", "Cardiac_risk_index", "Stress_index", 
+    "Diet_risk_index", "Lung_risk_index"
+]
+
+final_df = df.select(*final_columns)
+
+# --- 6. Write Processed Data to S3 (Single CSV) ---
+
+print(f"Writing {final_df.count()} processed records as a single CSV file to: {s3_processed_output_path}")
+
+# Use native Spark writer to enforce single file output using .coalesce(1)
+(
+    final_df
+    .coalesce(1) # Forces all data onto one executor to guarantee a single file output
+    .write
+    .mode("overwrite") # Overwrite previous output file(s) in the target directory
+    .option("header", "true") # Include column headers in the CSV file
+    .csv(s3_processed_output_path)
+)
+
+job.commit()
