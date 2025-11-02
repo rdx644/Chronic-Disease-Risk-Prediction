@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Wellify - Health Assessment</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* --- Core styles are kept, predictor-specific styles are removed --- */
+    @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700&display=swap');
+    * { font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif; }
+    .hero-gradient { background: linear-gradient(135deg,#1f2937 0%,#0f172a 100%); }
+    .glass-effect { backdrop-filter: blur(20px); background: rgba(30,41,59,0.8); border:1px solid rgba(156,163,175,0.2); transition: all .5s; }
+    .smooth-scroll { scroll-behavior: smooth; }
+    .fade-in { opacity:0; transform:translateY(30px); transition: all .8s ease; }
+    .fade-in.visible { opacity:1; transform:translateY(0); }
+    .nav-blur { backdrop-filter: blur(20px); background: rgba(17,24,39,0.8); transition: all .3s ease; }
+    .text-gradient { background: linear-gradient(135deg,#4f46e5 0%,#8b5cf6 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .text-gradient-hero { background: linear-gradient(135deg,#e0e7ff 0%,#a5b4fc 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .btn-primary { background: linear-gradient(135deg,#4f46e5 0%,#8b5cf6 100%); transition: all .3s ease; box-shadow: 0 4px 15px rgba(79,70,229,0.2); }
+    .btn-primary:hover{ transform: translateY(-3px); box-shadow:0 10px 25px rgba(79,70,229,0.4);}
+    .input-field { background: rgba(30,41,59,0.9); border:1px solid rgba(75,85,99,0.5); color:#d1d5db; transition: all .3s; }
+    .input-field:focus { background: rgba(30,41,59,1); border-color:#4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.2); transform: translateY(-1px); outline: none; }
+    .flow-card { background: rgba(30,41,59,0.8); backdrop-filter: blur(20px); border-radius:24px; border:1px solid rgba(156,163,175,0.2); transition: all .4s ease; box-shadow:0 4px 15px rgba(0,0,0,0.2); }
+    .flow-card:hover{ transform: translateY(-5px); box-shadow:0 10px 30px rgba(0,0,0,0.3); }
+    .progress-bar-container { position:relative; background-color:#334155; height:10px; border-radius:9999px; overflow:hidden; }
+    .progress-bar { background: linear-gradient(90deg,#4f46e5 0%,#8b5cf6 100%); height:100%; transition: width .4s ease-in-out; width:0%; }
+    .message-box { position: fixed; bottom:20px; right:20px; background-color:#16a34a; color:white; padding:1rem 1.5rem; border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,0.3); transform: translateY(100px); opacity:0; transition: all .5s; z-index:100; }
+    .message-box.show { transform: translateY(0); opacity:1; }
+    .floating-element { animation-duration:4s; animation-iteration-count:infinite; animation-name:floating; opacity:.1; }
+    @keyframes floating { 0%,100%{ transform: translateY(0) scale(1);} 50%{ transform: translateY(-20px) scale(1.05);} }
+    .brand-glow { position: relative; filter: drop-shadow(0 12px 40px rgba(99,102,241,0.45)); text-shadow: 0 8px 30px rgba(99,102,241,0.28), 0 2px 18px rgba(139,92,246,0.18); animation: pulseBrand 3.5s ease-in-out infinite; }
+    @keyframes pulseBrand { 0% { filter: drop-shadow(0 8px 22px rgba(99,102,241,0.28)); } 50% { filter: drop-shadow(0 18px 48px rgba(99,102,241,0.48)); } 100% { filter: drop-shadow(0 8px 22px rgba(99,102,241,0.28)); } }
+    #home { position: relative; }
+    .scan-beam { position: absolute; z-index: 9; top: -20%; left: -40%; width: 40%; height: 140%; pointer-events: none; transform: rotate(-12deg) translateX(-120%); background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.06) 45%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 55%, rgba(255,255,255,0) 100%); filter: blur(10px); mix-blend-mode: screen; animation: scanMove 6s linear infinite; opacity: 0.9; }
+    @keyframes scanMove { 0% { transform: rotate(-12deg) translateX(-120%); } 50% { transform: rotate(-12deg) translateX(120%); } 100% { transform: rotate(-12deg) translateX(360%); } }
+    #process .flow-card { transition: box-shadow .35s ease, transform .35s ease; box-shadow: 0 6px 22px rgba(79,70,229,0.06); border: 1px solid rgba(99,102,241,0.06); }
+    #process .flow-card .icon-glow { filter: drop-shadow(0 10px 30px rgba(79,70,229,0.16)); transition: filter .35s ease; }
+    #process .flow-card h3 { text-shadow: 0 6px 22px rgba(99,102,241,0.12); transition: text-shadow .35s ease; }
+    #process .flow-card:hover { box-shadow: 0 18px 60px rgba(79,70,229,0.14); transform: translateY(-8px); }
+    #process .flow-card:hover .icon-glow { filter: drop-shadow(0 18px 48px rgba(99,102,241,0.24)); }
+    #process .flow-card:hover h3 { text-shadow: 0 12px 34px rgba(99,102,241,0.18); }
+    .slider-container { display: flex; flex-direction: column; }
+    .slider-labels { display: flex; justify-content: space-between; font-size: 0.875rem; color: #9ca3af; margin-top: 0.5rem; }
+  </style>
+</head>
+<body class="smooth-scroll bg-gray-950 text-gray-100">
+
+  <nav class="fixed top-0 w-full z-50 nav-blur">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center space-x-8">
+          <a href="#home" class="text-2xl font-bold text-gradient">🏥 Wellify</a>
+          <div class="hidden md:flex space-x-6">
+            <a href="#home" class="text-gray-300 hover:text-white font-medium">Home</a>
+            <a href="#assessment" class="text-gray-300 hover:text-white font-medium">Assessment</a>
+            <a href="#about" class="text-gray-300 hover:text-white font-medium">About</a>
+          </div>
+        </div>
+        <div class="flex items-center space-x-4">
+          <button class="text-gray-300 hover:text-white transition-colors">👤</button>
+          <button class="md:hidden text-gray-300">☰</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <section id="home" class="hero-gradient min-h-screen flex items-center justify-center relative overflow-hidden pt-16">
+    <div class="absolute inset-0 bg-black opacity-10"></div>
+    <div class="absolute inset-0 overflow-hidden">
+      <div class="floating-element absolute top-20 left-10 w-20 h-20 bg-white bg-opacity-10 rounded-full animate-pulse"></div>
+      <div class="floating-element absolute top-40 right-20 w-16 h-16 bg-white bg-opacity-5 rounded-full animate-bounce" style="animation-delay:1s;"></div>
+      <div class="floating-element absolute bottom-40 left-20 w-24 h-24 bg-white bg-opacity-10 rounded-full animate-pulse" style="animation-delay:2s;"></div>
+    </div>
+    <div class="scan-beam" aria-hidden="true"></div>
+    <div class="relative z-10 text-center px-6 max-w-5xl mx-auto">
+      <h1 class="text-6xl md:text-8xl font-light mb-6 fade-in">
+        <span class="text-gradient-hero brand-glow">WELLIFY</span> <span class="text-gradient-hero brand-glow">AI</span>
+      </h1>
+      <p class="text-xl md:text-2xl font-light mb-4 opacity-90 fade-in">Advanced AI-powered disease risk assessment</p>
+      <p class="text-lg md:text-xl font-light mb-8 opacity-75 fade-in">Know your health • Protect your future • Live better</p>
+      <div class="fade-in">
+        <a href="#assessment" class="btn-primary text-white px-10 py-4 rounded-full font-semibold text-lg inline-block">🚀 Start Assessment</a>
+      </div>
+    </div>
+  </section>
+
+  <main id="assessment" class="min-h-screen hero-gradient pt-20 pb-12">
+    <div class="max-w-4xl mx-auto px-6 pt-8">
+      <div class="glass-effect rounded-3xl p-8 mb-8">
+        <h1 class="text-4xl md:text-5xl font-semibold text-center text-gray-100 mb-2 fade-in">Your Health Assessment</h1>
+        <p class="text-lg text-center text-gray-300 mb-6 fade-in">Fill out this form to get a personalized health risk assessment.</p>
+        <div class="flex items-center justify-between mb-2">
+          <span id="progress-text" class="text-sm text-gray-400">0% Complete</span>
+        </div>
+        <div class="progress-bar-container mb-6">
+          <div id="progress-bar" class="progress-bar" style="width:0%"></div>
+        </div>
+        <form id="health-form" class="space-y-8">
+          <!-- Email field moved to the top and occupies full width -->
+          <div>
+            <h2 class="text-2xl font-semibold mb-6 text-gray-200">Personal Information</h2>
+            <div class="flex flex-col mb-6"><label for="email" class="text-gray-300 font-medium mb-2">Email</label><input type="email" id="email" name="email" required class="input-field p-3 rounded-xl w-full"></div>
+          </div>
+          <div>
+            <h2 class="text-2xl font-semibold mb-6 text-gray-200">Demographic & Physical Attributes</h2>
+            <div class="grid md:grid-cols-2 gap-6">
+              <div class="flex flex-col"><label for="age" class="text-gray-300 font-medium mb-2">Age</label><input type="number" id="age" name="age" required class="input-field p-3 rounded-xl"></div>
+              <div class="flex flex-col"><label for="gender" class="text-gray-300 font-medium mb-2">Gender</label><select id="gender" name="gender" required class="input-field p-3 rounded-xl"><option value="" disabled selected>Select</option><option value="male">Male</option><option value="female">Female</option></select></div>
+              <div class="flex flex-col"><label for="height_cm" class="text-gray-300 font-medium mb-2">Height (cm)</label><input type="number" id="height_cm" name="height_cm" required class="input-field p-3 rounded-xl"></div>
+              <div class="flex flex-col"><label for="weight_kg" class="text-gray-300 font-medium mb-2">Weight (kg)</label><input type="number" id="weight_kg" name="weight_kg" required class="input-field p-3 rounded-xl"></div>
+              <div class="flex flex-col"><label for="bmi" class="text-gray-300 font-medium mb-2">BMI</label><input type="text" id="bmi" name="bmi" readonly class="input-field p-3 rounded-xl bg-gray-800 cursor-not-allowed"></div>
+              <div class="flex flex-col"><label for="region" class="text-gray-300 font-medium mb-2">Region</label><input type="text" id="region" name="region" class="input-field p-3 rounded-xl"></div>
+            </div>
+          </div>
+          <div>
+            <h2 class="text-2xl font-semibold mb-6 text-gray-200">Lifestyle Factors</h2>
+            <div class="grid md:grid-cols-2 gap-6">
+              <div class="flex flex-col">
+                <label for="smoking_status" class="text-gray-300 font-medium mb-2">Smoking Status</label>
+                <select id="smoking_status" name="smoking_status" class="input-field p-3 rounded-xl">
+                  <option value="" disabled selected>Select</option>
+                  <option value="current_smoker">Current Smoker</option>
+                  <option value="former_smoker">Former Smoker</option>
+                  <option value="never_smoked">Never Smoked</option>
+                </select>
+              </div>
+              <div class="flex flex-col">
+                <label for="alcohol_consumption" class="text-gray-300 font-medium mb-2">Alcohol Consumption</label>
+                <select id="alcohol_consumption" name="alcohol_consumption" class="input-field p-3 rounded-xl">
+                  <option value="" disabled selected>Select</option>
+                  <option value="none">None</option>
+                  <option value="light">Light</option>
+                  <option value="moderate">Moderate</option>
+                  <option value="heavy">Heavy</option>
+                </select>
+              </div>
+              <div class="flex flex-col"><label for="sleep_hours_per_day" class="text-gray-300 font-medium mb-2">Sleep Hours/Day</label><input type="number" id="sleep_hours_per_day" name="sleep_hours_per_day" min="0" max="24" class="input-field p-3 rounded-xl"></div>
+              <div class="flex flex-col">
+                <label for="diet_quality" class="text-gray-300 font-medium mb-2">Diet Quality</label>
+                <select id="diet_quality" name="diet_quality" class="input-field p-3 rounded-xl">
+                  <option value="" disabled selected>Select</option>
+                  <option value="poor">Poor</option>
+                  <option value="average">Average</option>
+                  <option value="good">Good</option>
+                </select>
+              </div>
+              <div class="flex flex-col slider-container">
+                <label for="physical_activity_level" class="text-gray-300 font-medium mb-2">Physical Activity (hours per week)</label>
+                <input type="range" id="physical_activity_level" name="physical_activity_level" min="0" max="10" step="1" value="0" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                <span id="physical_activity_value" class="text-sm text-gray-400 mt-2">0 hours</span>
+              </div>
+              <div class="flex flex-col slider-container">
+                <label for="stress_level" class="text-gray-300 font-medium mb-2">Stress Level (0-10)</label>
+                <input type="range" id="stress_level" name="stress_level" min="0" max="10" step="1" value="0" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                <span id="stress_value" class="text-sm text-gray-400 mt-2">0</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <h2 class="text-2xl font-semibold mb-6 text-gray-200">Health & Medical Data</h2>
+            <div class="grid md:grid-cols-2 gap-6">
+              <div class="flex flex-col"><label for="blood_pressure_sys" class="text-gray-300 font-medium mb-2">Blood Pressure (Systolic)</label><input type="number" id="blood_pressure_sys" name="blood_pressure_sys" class="input-field p-3 rounded-xl"></div>
+              <div class="flex flex-col"><label for="blood_pressure_dia" class="text-gray-300 font-medium mb-2">Blood Pressure (Diastolic)</label><input type="number" id="blood_pressure_dia" name="blood_pressure_dia" class="input-field p-3 rounded-xl"></div>
+              <div class="flex flex-col"><label for="cholesterol_level" class="text-gray-300 font-medium mb-2">Cholesterol Level</label><input type="number" id="cholesterol_level" name="cholesterol_level" class="input-field p-3 rounded-xl"></div>
+              <div class="flex flex-col"><label for="glucose_level" class="text-gray-300 font-medium mb-2">Glucose Level</label><input type="number" id="glucose_level" name="glucose_level" class="input-field p-3 rounded-xl"></div>
+            </div>
+          </div>
+          <div class="text-center pt-4">
+            <button type="submit" class="btn-primary text-white px-12 py-4 rounded-full font-semibold text-lg transform hover:scale-105">Get My Assessment</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <div id="message-box" class="message-box"><p id="message-text">Generating your report...</p></div>
+  </main>
+
+  <section id="about" class="py-20 bg-gray-950">
+    <div class="max-w-4xl mx-auto px-6">
+      <h2 class="text-4xl md:text-5xl font-semibold text-center mb-12 text-gray-100 fade-in">About Our Approach</h2>
+      <div class="text-lg leading-relaxed text-gray-300 space-y-6 fade-in"><p>Wellify AI is a smart health assessment platform that analyzes lifestyle, medical, and demographic data to predict potential disease risks.</p></div>
+    </div>
+  </section>
+  <section id="process" class="py-12 bg-gray-950">
+    <div class="max-w-6xl mx-auto px-6">
+      <div class="grid md:grid-cols-3 gap-8 md:gap-12 text-center">
+        <div class="flow-card p-8 fade-in"><div class="w-20 h-20 bg-gradient-to-r from-blue-500 to-blue-700 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-6 icon-glow">✍️</div><h3 class="text-2xl font-semibold mb-4">1. Add Your Details</h3><p class="text-gray-400">Enter your data into our form.</p></div>
+        <div class="flow-card p-8 fade-in"><div class="w-20 h-20 bg-gradient-to-r from-indigo-500 to-violet-600 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-6 icon-glow">🤖</div><h3 class="text-2xl font-semibold mb-4">2. Analysis</h3><p class="text-gray-400">Our model analyzes your inputs.</p></div>
+        <div class="flow-card p-8 fade-in"><div class="w-20 h-20 bg-gradient-to-r from-purple-500 to-purple-700 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-6 icon-glow">✨</div><h3 class="text-2xl font-semibold mb-4">3. Get Predictions</h3><p class="text-gray-400">Receive personalized predictions.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="bg-gray-900 text-white py-8">
+    <div class="max-w-6xl mx-auto px-6 text-center"><div class="text-xl font-bold text-gradient mb-2">🏥 Wellify</div><p class="text-gray-400 text-sm">&copy; 2024 Wellify. All rights reserved.</p></div>
+  </footer>
+
+  <script>
+    // General page functionality (observers, nav scroll, smooth scroll)
+    const observer = new IntersectionObserver((entries) => entries.forEach(e => e.isIntersecting && e.target.classList.add('visible')), { threshold: 0.1 });
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+    window.addEventListener('scroll', () => {
+      const nav = document.querySelector('nav');
+      nav.style.background = window.scrollY > 50 ? 'rgba(17, 24, 39, 0.95)' : 'rgba(17, 24, 39, 0.8)';
+    });
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function(e) {
+        e.preventDefault();
+        document.querySelector(this.getAttribute('href')).scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+
+    // Assessment form logic (BMI + Progress)
+    const healthForm = document.getElementById('health-form');
+    const emailInput = document.getElementById('email');
+    const heightInput = document.getElementById('height_cm');
+    const weightInput = document.getElementById('weight_kg');
+    const bmiInput = document.getElementById('bmi');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const messageBox = document.getElementById('message-box');
+    const messageText = document.getElementById('message-text');
+    const physicalActivitySlider = document.getElementById('physical_activity_level');
+    const physicalActivityValue = document.getElementById('physical_activity_value');
+    const stressLevelSlider = document.getElementById('stress_level');
+    const stressValue = document.getElementById('stress_value');
+    
+    // Update display for sliders
+    physicalActivitySlider.addEventListener('input', () => {
+      physicalActivityValue.textContent = `${physicalActivitySlider.value} hours`;
+      updateProgressBar();
+    });
+    stressLevelSlider.addEventListener('input', () => {
+      stressValue.textContent = stressLevelSlider.value;
+      updateProgressBar();
+    });
+
+    // Include the email field in the progress calculation
+    const allFields = Array.from(healthForm.querySelectorAll('input:not([type="hidden"]), select')).filter(f => !f.readOnly);
+    const totalFields = allFields.length;
+
+    function calculateBmi() {
+      const height = parseFloat(heightInput.value);
+      const weight = parseFloat(weightInput.value);
+      bmiInput.value = (height > 0 && weight > 0) ? (weight / ((height / 100) ** 2)).toFixed(2) : '';
+      updateProgressBar();
+    }
+    heightInput.addEventListener('input', calculateBmi);
+    weightInput.addEventListener('input', calculateBmi);
+
+    function updateProgressBar() {
+      let filledCount = allFields.filter(field => (field.value || '').trim() !== '' && field.value !== '0').length;
+      
+      // Special handling for sliders
+      if (physicalActivitySlider.value > 0) filledCount++;
+      if (stressLevelSlider.value > 0) filledCount++;
+      
+      const percentage = totalFields > 0 ? (filledCount / totalFields) * 100 : 0;
+      progressBar.style.width = `${percentage}%`;
+      progressText.textContent = `${percentage.toFixed(0)}% Complete`;
+    }
+    allFields.forEach(f => f.addEventListener('input', updateProgressBar));
+    document.addEventListener('DOMContentLoaded', () => {
+      updateProgressBar();
+      // Also update slider values on load to match initial values
+      physicalActivityValue.textContent = `${physicalActivitySlider.value} hours`;
+      stressValue.textContent = stressLevelSlider.value;
+    });
+
+    // --- NEW FORM SUBMISSION LOGIC FOR API GATEWAY / DYNAMODB ---
+    healthForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      // Update message box to show submission status
+      messageBox.style.backgroundColor = '#f59e0b'; // Amber for pending
+      messageText.textContent = 'Submitting data...';
+      messageBox.classList.add('show');
+
+      try {
+        const fd = new FormData(healthForm);
+        const data = Object.fromEntries(fd.entries());
+        
+        // Ensure BMI is calculated and included if missing
+        if (!data.bmi || data.bmi === '') {
+          calculateBmi();
+          data.bmi = bmiInput.value;
+        }
+
+        // Generate the custom submissionId
+        const emailPrefix = data.email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+        const timestamp = new Date().toISOString().replace(/[:.-]/g, '');
+        data.submissionId = `${emailPrefix}-${timestamp}`;
+
+        // Use the provided API Gateway endpoint URL
+        const apiGatewayEndpoint = 'https://pfncl3upvg.execute-api.ap-south-1.amazonaws.com/prod/';
+
+        // Send the data as a JSON payload
+        const response = await fetch(apiGatewayEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          messageBox.style.backgroundColor = '#16a34a'; // Green for success
+          // Display the email as the ID
+          messageText.innerHTML = `Success! Data submitted.<br>ID: ${result.submissionId}`;
+        } else {
+          const errorText = await response.text();
+          messageBox.style.backgroundColor = '#dc2626'; // Red for error
+          messageText.textContent = `Error: ${errorText}`;
+        }
+
+      } catch (error) {
+        console.error('Submission failed:', error);
+        messageBox.style.backgroundColor = '#dc2626'; // Red for error
+        messageText.textContent = `Submission failed. Check console for details.`;
+      } finally {
+        // Hide the message box after a delay
+        setTimeout(() => messageBox.classList.remove('show'), 5000);
+      }
+    });
+
+    // Initial fade-in for elements in view
+    window.addEventListener('load', () => {
+      document.querySelectorAll('.fade-in').forEach((el, idx) => {
+        if (el.getBoundingClientRect().top < window.innerHeight) setTimeout(() => el.classList.add('visible'), idx * 80);
+      });
+    });
+  </script>
+</body>
+</html>
